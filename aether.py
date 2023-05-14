@@ -9,12 +9,21 @@ import mongo
 Peers = []
 Logs = []
 
+
+DB = "mongodb://localhost:27017/"
+DB_NAME = "monate"
+DB_NODES_COLLECTION = "nodes"
+DB_PUBLIC_NODES_COLLECTION = "public_nodes"
+DB_LOGS_COLLECTION = "logs"
+
+DEFAULT_PEERS = ["127.0.0.1"]
 RPC_ADMIN_PEERS = "admin_peers"
 RPC_NET_VERSION = "net_version"
 
 CONNECTION_TIMEOUT = 1  # seconds
-UPDATE_CONNECTED_PEERS = 6  # minutes
-RUN_CODE_TIMES = 1  # value * 10
+UPDATE_CONNECTED_PEERS = 6 * 60
+RUN_CODE_TIMES = 1  # code runs value * RUN_CODE_TIMES_MULTIPLY
+RUN_CODE_TIMES_MULTIPLY = 10
 
 
 def get_cmd(node_url, port, call):
@@ -97,12 +106,17 @@ def add_peers(peers):  # return new peers || IGNORE
 
 def main():
     global Peers
-    monate = mongo.Monate("monate", "nodes", "logs")
-
-    connected_peers = ["127.0.0.1"]
+    global Logs
+    monate = mongo.Monate(
+        DB, DB_NAME, DB_NODES_COLLECTION, DB_PUBLIC_NODES_COLLECTION, DB_LOGS_COLLECTION
+    )
+    connected_peers = DEFAULT_PEERS
     time_start = time.time()
     for x in range(RUN_CODE_TIMES):
-        for i in range(10):
+        print("===============================================")
+        print("Connected Peers:", connected_peers)
+        for i in range(RUN_CODE_TIMES_MULTIPLY):
+            print(f"[{(i+1)+(x*10)}] - Scanning..", end=".\r")
             new_peers = []
             for peer in connected_peers:
                 (_, tmp) = get_peers(peer)
@@ -114,18 +128,16 @@ def main():
             )
             Peers += new_peers
             time.sleep(0.5)
-            if time.time() >= time_start + (60 * UPDATE_CONNECTED_PEERS):
+            if time.time() >= time_start + (UPDATE_CONNECTED_PEERS):
                 connected_peers = check_rpc(connected_peers)
-
+        print()
         print("New Peers:", Peers)
-        print("Connected Peers:", connected_peers)
-
-    if Peers:
         monate.insert_peers(list(map(lambda x: {"node": x}, Peers)))
-        print("Added Peers to db")
-    if Logs:
         monate.insert_logs(Logs)
-        print("Added Logs to db")
+        monate.insert_public_peers(list(map(lambda x: {"": x}, connected_peers)))
+        Peers = []
+        Logs = []
+
 
 if __name__ == "__main__":
     main()

@@ -10,7 +10,6 @@
 - get_peers() => return 
 - detect_vulns() => return 
 - check_rpc(peers[]) => check if rpc API is public for  peers[]
-- add_peer() => add list of peers to Peers
 
 
 ## Steps
